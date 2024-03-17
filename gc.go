@@ -41,24 +41,28 @@ func (m *memStats) read() {
 	m.numCycles = m.samples[3].Value.Uint64()
 }
 
-// initFinalizer sets up a finalizer to run the GC, and then recreates itself
+// initFinalizerChain sets up a finalizer to run the GC, and then recreates itself
 // upon ever GC.
-func (l *Map[K, V]) initFinalizer() {
+func (l *Map[K, V]) initFinalizerChain() {
 	// This sentinel value escapes into the heap and is used to "hook" into
 	// the GC.
 	sentinel := allocSentinel()
 	defer runtime.KeepAlive(sentinel)
 
 	runtime.SetFinalizer(sentinel, func(s *gcSentinel) {
+		l.mu.Lock()
+		defer l.mu.Unlock()
+
 		l.gc(s)
-		l.initFinalizer()
+		// IMPORTANT: do not create a finalizer when the map is empty
+		// to avoid an infinite leak of the sentinel object.
+		if len(l.index) > 0 {
+			l.initFinalizerChain()
+		}
 	})
 }
 
 func (l *Map[K, V]) gc(s *gcSentinel) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
 	l.lastSentinel = s
 	l.gcMemStats.read()
 

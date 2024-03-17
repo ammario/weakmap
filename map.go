@@ -36,7 +36,6 @@ func (m *Map[K, V]) initOnce() {
 	}
 	m.index = make(map[K]*doublelist.Node[dataWithKey[K, V]])
 	m.lruList = &doublelist.List[dataWithKey[K, V]]{}
-	m.initFinalizer()
 }
 
 type gcSentinel struct {
@@ -84,6 +83,11 @@ func (l *Map[K, V]) Set(key K, v V) {
 			key:  key,
 		},
 	)
+
+	// Set up the finalizer chain upon first entry.
+	if len(l.index) == 1 {
+		l.initFinalizerChain()
+	}
 }
 
 func (l *Map[K, V]) get(key K) (v V, exists bool) {
