@@ -7,7 +7,6 @@ type Node[T any] struct {
 }
 
 type List[T any] struct {
-	data T
 	head *Node[T]
 	tail *Node[T]
 }

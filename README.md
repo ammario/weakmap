@@ -6,7 +6,7 @@ Instead, it uses finalizers to hook into garbage collection cycles and evicts
 old entries based on a combination of a least-recently-used (LRU) policy
 and memory pressure reported by the runtime.
 
-The primary use case of the weak map is caching expensive to compute values.
+The primary use case for this type of weak map is caching expensive to compute values.
 Compared to a traditional in-memory caches, you don't have to think
 about deadlines or background cleanup tasks. You can flippantly throw stuff into the weak map and let the GC clean up after you.
 
