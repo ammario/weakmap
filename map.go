@@ -16,7 +16,8 @@ type dataWithKey[K comparable, V any] struct {
 // Map implements a LRU weak map safe for concurrent use.
 // The zero value is an empty map ready for use.
 //
-// When the GC runs, half of the least recently used entries are evicted.
+// When the Go GC runs, the oldest entries proportional to memory
+// pressure are evicted.
 type Map[K comparable, V any] struct {
 	mu sync.Mutex
 
@@ -57,7 +58,7 @@ func (l *Map[K, V]) delete(key K) {
 	delete(l.index, key)
 }
 
-// Delete removes an entry from the cache, returning cost savings.
+// Delete removes an entry from the cache.
 func (l *Map[K, V]) Delete(key K) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -66,16 +67,9 @@ func (l *Map[K, V]) Delete(key K) {
 	l.delete(key)
 }
 
-func (l *Map[K, V]) Len() int {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.initOnce()
-
-	return len(l.index)
-}
-
 // Set adds a new value to the cache.
-// Set may also be used to bump a value to the top of the cache.
+//
+// Set may also be used to bump an existing value to the top of the cache.
 func (l *Map[K, V]) Set(key K, v V) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -111,6 +105,14 @@ func (l *Map[K, V]) Get(key K) (v V, exists bool) {
 	l.initOnce()
 
 	return l.get(key)
+}
+
+func (l *Map[K, V]) Len() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.initOnce()
+
+	return len(l.index)
 }
 
 // Do is a helper that retrieves a value from the cache, if it exists, and

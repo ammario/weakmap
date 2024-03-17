@@ -6,12 +6,21 @@ Instead, it uses finalizers to hook into garbage collection cycles and evicts
 old entries based on a combination of a least-recently-used (LRU) policy
 and memory pressure reported by the runtime.
 
+The primary use case of the weak map is caching expensive to compute values.
+Compared to a traditional in-memory caches, you don't have to think
+about deadlines or background cleanup tasks. You can flippantly throw stuff into the weak map and let the GC clean up after you.
+
+Install:
 ```
 go get github.com/ammario/weakmap@main
 ```
 
-See https://github.com/golang/go/issues/43615 for the state of the debate of
-weak references in Go.
+
+> [!WARNING]
+> `weakmap` relies on `runtime.SetFinalizer` and, specifically, that
+> objects larger than 16 bytes will not be batched into shared allocation
+> slots. While this behavior is documented, whether the Go Authors consider
+> it apart of the compatibility promise is dubious at best.
 
 ## Basic Usage
 
@@ -34,11 +43,11 @@ m.Delete("pi")
 
 Cache eviction occurs automatically when the GC runs. The number of removed
 entries is proportional to the program's memory pressure. Memory pressure
-is defined as the ratio of `/memory/classes/heap/objects:bytes` to
+is defined as the ratio of [`runtime/metrics`](https://pkg.go.dev/runtime/metrics) `/memory/classes/heap/objects:bytes` to
 `/memory/classes/total:bytes`.
 
 ## Testing
-You can run ./example/gctest to see how the map behaves under different
+You may run ./example/gctest to see how the map behaves under different
 memory conditions.
 
 For example:
@@ -60,3 +69,8 @@ Map Size  Total Sets Mem Alloc   Next GC   GC Runs
 26        900       54 MB (53%) 59 MB     30
 32        999       83 MB (82%) 91 MB     33
 ```
+
+## Further Reading
+
+* See https://github.com/golang/go/issues/43615 for the state of the debate of
+weak references in Go.
