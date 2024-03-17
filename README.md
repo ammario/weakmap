@@ -39,6 +39,9 @@ m.Delete("pi")
 // It's now gone!
 ```
 
+The map's operations are already protected by a mutex and are those
+safe for concurrent use.
+
 ## Eviction
 
 Cache eviction occurs automatically when the GC runs. The number of removed
