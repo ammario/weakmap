@@ -3,7 +3,7 @@ package weakmap
 import (
 	"sync"
 
-	"github.com/ammario/weakmap/internal/doublelist"
+	"github.com/ammario/weakmap/doublelist"
 )
 
 // dataWithKey bundles data with its reference key.
