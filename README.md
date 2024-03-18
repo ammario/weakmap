@@ -6,9 +6,9 @@ Instead, it uses finalizers to hook into garbage collection cycles and evicts
 old entries based on a combination of a least-recently-used (LRU) policy
 and memory pressure reported by the runtime.
 
-The primary use case for this type of weak map is caching expensive to compute values.
-Compared to a traditional in-memory caches, you don't have to think
-about deadlines or background cleanup tasks. You can flippantly throw stuff into the weak map and let the GC clean up after you.
+The primary use case for this type of weak map is memory-caching. Compared to a
+traditional in-memory caches, you don't have to think about deadlines or background cleanup tasks.
+You can carelessly throw stuff into the weak map and let the GC take care of the rest.
 
 Install:
 ```
@@ -39,15 +39,18 @@ m.Delete("pi")
 // It's now gone!
 ```
 
-The map's operations are already protected by a mutex and are those
-safe for concurrent use.
+The map's operations are already protected by a mutex and are safe for concurrent
+use.
 
 ## Eviction
 
 Cache eviction occurs automatically when the GC runs. The number of removed
-entries is proportional to the program's memory pressure. Memory pressure
-is defined as the ratio of [`runtime/metrics`](https://pkg.go.dev/runtime/metrics) `/memory/classes/heap/objects:bytes` to
-`/memory/classes/total:bytes`.
+entries is proportional to the program's memory pressure.
+
+Memory pressure is defined as the ratio of [`runtime/metrics`](https://pkg.go.dev/runtime/metrics) `/memory/classes/heap/objects:bytes` to `/memory/classes/total:bytes`. The Map likely needs a tuning
+parameter to adjust sensitivity but I'm not yet sure what that should be.
+
+See [`gc.go`](./gc.go) for the implementation details.
 
 ## Testing
 You may run ./example/gctest to see how the map behaves under different
