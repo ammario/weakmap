@@ -57,9 +57,9 @@ See [`gc.go`](./gc.go) for the implementation details.
 
 ## Cost Control
 
-Often you want to control the amount of memory uses even in
-abundant environments. To that end, you can specify a
+Often you want to control the amount of memory a data structure uses even when memory is abundant. To that end, you can specify a
 cost function and cost limit on each map. For example:
+
 ```go
 m := Map[string, []byte]{
     Coster: func(v []byte) int { return len(v) },
@@ -70,7 +70,6 @@ for {
     m.Set("big", make([]byte, 1024*1024))
 }
 // Map will never track more than 1 GB of byte slice memory.
-
 ```
 
 ## Testing
