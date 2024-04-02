@@ -28,6 +28,17 @@ type Map[K comparable, V any] struct {
 
 	gcMemStats   memStats
 	lastSentinel *gcSentinel
+
+	cost int
+	// Coster is a function that returns the cost of a value,
+	// policed by MaxCost. If left nil, Coster becomes a function
+	// that always returns 1.
+	Coster func(V) int
+	// MaxCost is the maximum cost of the cache.
+	// When a Set would cause the cost to exceed MaxCost,
+	// the least recently used entries are evicted until
+	// the cost is below MaxCost.
+	MaxCost int
 }
 
 func (m *Map[K, V]) initOnce() {
@@ -36,6 +47,9 @@ func (m *Map[K, V]) initOnce() {
 	}
 	m.index = make(map[K]*doublelist.Node[dataWithKey[K, V]])
 	m.lruList = &doublelist.List[dataWithKey[K, V]]{}
+	if m.Coster == nil {
+		m.Coster = func(V) int { return 1 }
+	}
 }
 
 type gcSentinel struct {
@@ -54,6 +68,7 @@ func (l *Map[K, V]) delete(key K) {
 		return
 	}
 	l.lruList.Pop(node)
+	l.cost -= l.Coster(node.Data.data)
 	delete(l.index, key)
 }
 
@@ -83,10 +98,28 @@ func (l *Map[K, V]) Set(key K, v V) {
 			key:  key,
 		},
 	)
+	l.cost += l.Coster(v)
 
 	// Set up the finalizer chain upon first entry.
 	if len(l.index) == 1 {
 		l.initFinalizerChain()
+	}
+
+	l.evictOverages()
+}
+
+func (l *Map[K, V]) evictOverages() {
+	if l.MaxCost == 0 {
+		// Disabled.
+		return
+	}
+	for l.cost > l.MaxCost {
+		last := l.lruList.Tail()
+		if last == nil {
+			// No data left to evictOverages. Avoid looping forever.
+			return
+		}
+		l.delete(last.Data.key)
 	}
 }
 
@@ -117,6 +150,15 @@ func (l *Map[K, V]) Len() int {
 	l.initOnce()
 
 	return len(l.index)
+}
+
+// Cost returns the current cost of the cache.
+func (l *Map[K, V]) Cost() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.initOnce()
+
+	return l.cost
 }
 
 // Do is a helper that retrieves a value from the cache, if it exists, and

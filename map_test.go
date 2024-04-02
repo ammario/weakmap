@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTLRU(t *testing.T) {
+func TestMap(t *testing.T) {
 	t.Run("OverrideValue", func(t *testing.T) {
 		m := Map[string, int]{}
 		m.Set("a", 10)
@@ -50,6 +50,54 @@ func TestTLRU(t *testing.T) {
 
 		// No recompute, cache hit.
 		require.Equal(t, 11, v)
+	})
+}
+
+func TestMap_Cost(t *testing.T) {
+	t.Run("OldValuesEvicted", func(t *testing.T) {
+		m := Map[string, int]{MaxCost: 10}
+		for i := 0; i < 100; i++ {
+			m.Set(strconv.Itoa(i), i)
+			// 4 is our busy value that should not be evicted.
+			m.Get("4")
+		}
+		for i := 0; i < 100; i++ {
+			v, ok := m.Get(strconv.Itoa(i))
+			if i < 91 && i != 4 {
+				if ok {
+					t.Fatalf("value %v:%v exists", i, v)
+				}
+				continue
+			}
+			if !ok {
+				t.Fatalf("value %v:%v should be in cache", i, v)
+			}
+			if m.cost != 10 {
+				t.Fatalf("cost is %v", m.cost)
+			}
+			if len(m.index) != 10 {
+				t.Fatalf("len(c.index) is %v", len(m.index))
+			}
+		}
+	})
+	t.Run("LimitBytes", func(t *testing.T) {
+		m := Map[string, []byte]{
+			Coster:  func(v []byte) int { return len(v) },
+			MaxCost: 100,
+		}
+
+		const allocSize = 5
+		for i := 0; i < 100; i++ {
+			m.Set("big"+strconv.Itoa(i), make([]byte, allocSize))
+		}
+
+		if m.Cost() > m.MaxCost {
+			t.Fatalf("cost is %v", m.Cost())
+		}
+
+		if wantLen := m.MaxCost / allocSize; m.Len() != wantLen {
+			t.Fatalf("len is %v, want %v", m.Len(), wantLen)
+		}
 	})
 }
 

@@ -22,6 +22,9 @@ go get github.com/ammario/weakmap@main
 > slots. While this behavior is documented, whether the Go Authors consider
 > it apart of the compatibility promise is dubious at best.
 
+See [ammario/tlru](https://github.com/ammario/tlru/tree/master) for
+a safer, traditional cache implementation.
+
 ## Basic Usage
 
 The API should be familiar to anyone that's used a map:
@@ -51,6 +54,24 @@ Memory pressure is defined as the ratio of [`runtime/metrics`](https://pkg.go.de
 parameter to adjust sensitivity but I'm not yet sure what that should be.
 
 See [`gc.go`](./gc.go) for the implementation details.
+
+## Cost Control
+
+Often you want to control the amount of memory uses even in
+abundant environments. To that end, you can specify a
+cost function and cost limit on each map. For example:
+```go
+m := Map[string, []byte]{
+    Coster: func(v []byte) int { return len(v) },
+    MaxCost: 1024*1024*1024, // 1 GB
+}
+
+for {
+    m.Set("big", make([]byte, 1024*1024))
+}
+// Map will never track more than 1 GB of byte slice memory.
+
+```
 
 ## Testing
 You may run ./example/gctest to see how the map behaves under different
